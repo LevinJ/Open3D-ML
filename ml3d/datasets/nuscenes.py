@@ -10,8 +10,14 @@ from .base_dataset import BaseDataset
 from ..utils import DATASET
 from .utils import BEVBox3D
 import open3d as o3d
+import sys
 
 log = logging.getLogger(__name__)
+
+script_path = '/home/levin/workspace/ros_projects/src/vslam_localization/scripts'
+sys.path.append(script_path)
+
+from utility.poseinfo import PoseInfo
 
 
 class NuScenes(BaseDataset):
@@ -264,12 +270,25 @@ class NuSceneSplit():
 
         pc = self.dataset.read_lidar(lidar_path)
         label = self.dataset.read_label(info, calib)
+        
+        Tbl = world_cam
+        Twb = np.eye(4)
+        Twb[:3, :3] = R.from_quat(info['ego2global_rot']).as_matrix()
+        Twb[:3, -1] = info['ego2global_tr']
+        
+        
+        Tbl = PoseInfo().construct_fromT(Tbl)
+        Twb = PoseInfo().construct_fromT(Twb)
+        Twl = Twb * Tbl
 
         data = {
             'point': pc,
             'feat': None,
             'calib': calib,
             'bounding_boxes': label,
+            'Tbl':Tbl,
+            'Twb':Twb,
+            'Twl':Twl
         }
 
         if 'cams' in info:

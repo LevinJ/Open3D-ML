@@ -47,6 +47,7 @@ class Model:
         self._attr2minmax = {}  # only access in _get_attr_minmax()
 
         self._attr_rename = {"label": "labels", "feat": "feature"}
+        self._name2srcdata = {}
 
     def _init_data(self, name):
         tcloud = o3d.t.geometry.PointCloud(o3d.core.Device("CPU:0"))
@@ -93,6 +94,8 @@ class Model:
                                                                       copy=True)
         else:
             tcloud.point["positions"] = Visualizer._make_tcloud_array(pts)
+        if 'Twl' in data:
+            tcloud.transform(data['Twl'].T)
         self.tclouds[name] = tcloud
 
         # Add scalar attributes and vector3 attributes
@@ -342,6 +345,7 @@ class DatasetModel(Model):
         data = self._dataset.get_data(idx)
         data["name"] = name
         data["points"] = data["point"]
+        self._name2srcdata[name] = data
 
         self.create_point_cloud(data)
 
@@ -1133,7 +1137,8 @@ class Visualizer:
         # Progress has: len(names) items + ui_done_callback
         progress_dlg = Visualizer.ProgressDialog("Loading...", self.window,
                                                  len(names) + 1)
-        progress_dlg.set_text("Loading " + names[0] + "...")
+        if len(names) != 0:
+            progress_dlg.set_text("Loading " + names[0] + "...")
 
         def load_thread():
             for i in range(0, len(names)):
@@ -1775,9 +1780,10 @@ class Visualizer:
         for name, node in self._name2treenode.items():
             node.checkbox.checked = False
             self._3d.scene.show_geometry(name, False)
-        for name in [self._objects.data_names[0]]:
-            self._name2treenode[name].checkbox.checked = True
-            self._3d.scene.show_geometry(name, True)
+        if len(self._objects.data_names) != 0:
+            for name in [self._objects.data_names[0]]:
+                self._name2treenode[name].checkbox.checked = True
+                self._3d.scene.show_geometry(name, True)
 
         def on_done_ui():
             # Add bounding boxes here: bounding boxes belonging to the dataset
